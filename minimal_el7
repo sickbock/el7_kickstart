@@ -16,8 +16,9 @@
 #optional since Fedora 18 #
 install
 
-url --mirrorlist http://mirrorlist.centos.org/?release=7&arch=x86_64&repo=os
-repo --name=centos-updates --mirrorlist=http://mirrorlist.centos.org/?release=7&arch=x86_64&repo=updates
+url --url http://mirror.centos.org/centos/7/os/x86_64/
+#url --mirrorlist http://mirrorlist.centos.org/?release=7&arch=x86_64&repo=os
+#repo --name=centos-updates --mirrorlist=http://mirrorlist.centos.org/?release=7&arch=x86_64&repo=updates
 
 # Use text mode install
 text
