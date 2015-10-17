@@ -205,15 +205,12 @@ if [ "${hostname}" == "" -o "${hostname}"  == "localhost" ]; then
 else
 	vgname=vg_${hostname%%.*}
 fi
-# RAM in GB:
-MemTotal=`awk '/MemTotal:/ {print ($2/(1024^2))}' /proc/meminfo`
-echo "RAM in GB:		${MemTotal}"
 
 # KISS: just /boot, / and swap:
 echo "part /boot --fstype ext4 --size=512 --asprimary --ondisk ${INSTDISK}
 part pv.3 --size=100 --grow
 volgroup ${vgname} pv.3
-logvol swap           --fstype swap --name=lv_swap          --vgname=${vgname} --${swapsize}
+logvol swap           --fstype swap --name=lv_swap          --vgname=${vgname} --recommended
 logvol /              --fstype xfs --name=lv_root          --vgname=${vgname} --size=100 --grow --maxsize=7168" >/tmp/partitions
 
 %end
