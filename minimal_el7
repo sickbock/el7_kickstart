@@ -1,0 +1,194 @@
+# Basic EL 7 Kickstart configuration 
+# Load form a webserver / GitHub after (network) boot 
+# Retrieves software directly from CentOS mirror
+#
+# No hardening, not mucht modifications.
+#
+# 201510 Joachim la Poutre'
+
+################################################################################
+# Command Section
+################################################################################
+# Perform the installation in a completely non-interactive command 
+# The recommended use is in conjunction with RUNKS=1 and ks=  cmdline
+
+# (Required) We want to "install" as opposed to "upgrade" an existing system
+#optional since Fedora 18 #
+install
+
+url --mirrorlist http://mirrorlist.centos.org/?release=7&arch=x86_64&repo=os
+repo --name=centos-updates --mirrorlist=http://mirrorlist.centos.org/?release=7&arch=x86_64&repo=updates
+
+# Use text mode install
+text
+
+# Reboot the machine after the installation is complete
+# and attempt to eject the CD/DVD/Bootdisk
+reboot
+
+# X is not configured except for Desktops
+skipx
+
+# Skip EULA (include this for non-interactive install of subcription based EL)
+eula --agreed
+
+# System keyboard
+keyboard us
+
+# System language
+lang en_US.UTF-8
+
+# Setup agent should not start the first time the system boots:
+firstboot --disable
+
+# Include created here for the moment not working or required (CD boot)
+%include /tmp/network
+
+# (Required) Sets the root password so there is no prompt during installation
+rootpw --iscrypted $6$rounds=1000000$Vk3DpNkIQEsP5dsy$4D6K/2L48u1CMJk.l8f8LftXbMP/NVvi2F5xEns7kShS1dhr0CROeecgjj8e1dvUptY0AajecNl/FZVQUkbmq0
+
+# Enable the firewall
+firewall --enabled --ssh --port=80:tcp
+
+# shadow configuration:
+authconfig --enableshadow --passalgo=sha512
+
+# System timezone
+timezone --utc Europe/Amsterdam
+
+# CIS 1.4.1 Enable SELinux (default), 1.4.2 Enforcing, 1.4.3 Targeted Policy
+selinux --enforcing
+
+# Clear the Master Boot Record
+zerombr
+
+# Partition clearing information
+# The --initlabel option has been deprecated. To initialize disks with invalid partition tables and clear their contents, use the zerombr command. 
+clearpart --all
+
+# Include generated partition layout
+%include /tmp/partitions
+
+################################################################################
+# Packages
+# see output from 'yum group info Core'' (and 'Base')
+################################################################################
+%packages # obsolete # --nobase
+@core
+# add some basic software
+acl
+authconfig
+bash-completion
+bc
+bind-libs
+bind-utils
+bridge-utils
+bzip2
+chrony
+cpio
+crontabs
+ed
+ethtool
+file
+firewalld
+gnupg2
+krb5-workstation
+logrotate
+lsof
+lvm2
+man-db
+man-pages
+nc
+net-tools
+openldap-clients
+openssh-clients
+pam_krb5
+pam_ldap
+perl
+plymouth
+prelink
+rsync
+samba-common
+samba-winbind
+sssd
+strace
+tcpdump
+tcp_wrappers
+telnet
+tmux
+traceroute
+virt-what
+wget
+which
+xfsdump
+xz
+yum-utils
+zip
+%end
+
+################################################################################
+# Pre section
+################################################################################
+%pre --log=/tmp/ks-pre.log
+#!/bin/bash
+#
+# First read the cmdline:
+# on installation edit the PXE boot line and add: hostname=<hostname> 
+#
+set -- `cat /proc/cmdline`
+for I in $*;
+do
+case "$I" in
+*=*) eval $I
+;;
+esac;
+done
+
+################################################################################
+# Configure the network
+################################################################################
+touch /tmp/routing
+# just use DHCP + eth0 (no fancy routing for straight forward VM installation)
+if [ "${hostname}" != "" ]; then
+  echo "network --device=eth0 --bootproto=dhcp --onboot=yes --noipv6" \
+        --hostname=${hostname} >/tmp/network
+else
+  echo "network --device=eth0 --bootproto=dhcp --onboot=yes --noipv6" \
+         >/tmp/network
+fi
+
+%end
+
+################################################################################
+# Post sections follow here
+# 
+# Feel free to re-implement everything using your configuration management
+################################################################################
+%post --log=/root/ks-post.log
+
+# If you prefer Emacs, remove these:
+echo "set -o vi" >> /etc/profile
+echo "set -o vi" >> /etc/bashrc
+
+# Vagrant:
+useradd  -m -d /home/vagrant -s /bin/bash -p '$6$rounds=1000000$KKaL8Z6CY+YxSbNh$CfE6VGt92n6ESZOhYPRO7hMwBhoFpYCPwc7qqjPPEdJzp8kpkPCUA46zLDyuLgcnMaF32mFuaiukmCC3jSmQk/' -c "Vagrant Administrator" vagrant
+mkdir /home/vagrant/.ssh
+echo "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA6NF8iallvQVp22WDkTkyrtvp9eWW6A8YVr+kz4TjGYe7gHzIw+niNltGEFHzD8+v1I2YJ6oXevct1YeS0o9HZyN1Q9qgCgzUFtdOKLv6IedplqoPkcmF0aYet2PkEDo3MlTBckFXPITAMzF8dJSIFo9D8HfdOV0IAdx4O7PtixWKn5y2hMNG0zQPyUecp4pzC6kivAIhyfHilFR61RGL+GPXQ2MWZWFYbAGjyiYJnAmCP3NOTd0jMZEnDkbUvxhMmBYSdETk1rRgm+R4LOzFUGaHqHDLKLX+FIPKcF96hrucXzcWyLbIbEgE98OHlnVYCzRdK8jlqm8tehUc9c9WhQ== vagrant insecure public key" > /home/vagrant/.ssh/authorized_keys
+chmod 700  /u01/app/wlsofm/.ssh
+chmod 600  /u01/app/wlsofm/.ssh/authorized_keys
+
+################################################################################
+# End post install configurations
+################################################################################
+###passwd -e root # <-- if you want to type in a complicated password ;-)
+touch /.autorelabel
+
+%end
+
+%post --nochroot
+cp /tmp/* /mnt/sysimage/tmp/
+%end
+
+# Reboot machine after installation
+reboot
+
