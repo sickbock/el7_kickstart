@@ -67,9 +67,6 @@ zerombr
 # The --initlabel option has been deprecated. To initialize disks with invalid partition tables and clear their contents, use the zerombr command. 
 clearpart --all
 
-# Include generated partition layout
-%include /tmp/partitions
-
 ################################################################################
 # Packages
 # see output from 'yum group info Core'' (and 'Base')
